@@ -14,8 +14,7 @@ import { isOnlyOneEmoji } from "~/regex";
 import { CheckOut } from "~/components/CheckOut";
 import { NWA } from "~/components/Auth";
 import { LoadingSpinner } from "~/components/LoadingSpinner";
-
-const API_URL = import.meta.env.VITE_ZAPPLE_API_URL;
+import { authedPost, describeFailure, getExtensionPubkey } from "~/api/nip98";
 
 const EMOJI_OPTIONS = ["⚡️", "🤙", "👍", "❤️", "🫂"];
 
@@ -96,18 +95,11 @@ export default function Home() {
                 console.log("using auth id", nwaAuthId());
             } else if (nwc) {
                 payload.nwc = nwc;
-                console.log("using nwc", nwc);
             } else {
                 throw new Error("You must connect a wallet");
             }
 
-            const res = await fetch(`https://${API_URL}/set-user`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-            });
+            const res = await authedPost("/set-user", JSON.stringify(payload));
 
             console.log(res);
 
@@ -115,7 +107,7 @@ export default function Home() {
                 console.log("saved");
                 setSaved(true);
             } else {
-                throw new Error("something went wrong");
+                throw new Error(await describeFailure(res));
             }
         } catch (e) {
             console.error(e);
@@ -154,6 +146,18 @@ export default function Home() {
         setNwaAuthId(authId);
         if (authId) {
             submit(zappleForm);
+        }
+    }
+
+    // The backend only stores a config for the npub that signed the request,
+    // so the form npub has to be the extension's key.
+    async function useExtensionNpub() {
+        setError(undefined);
+        try {
+            const hex = await getExtensionPubkey();
+            setValue(zappleForm, "npub", nip19.npubEncode(hex));
+        } catch (e) {
+            setError(e as Error);
         }
     }
 
@@ -209,12 +213,22 @@ export default function Home() {
                                     <label class="mb-0">your npub</label>
                                     <label class="text-sm font-normal mt-0 opacity-75">
                                         Zapple Pay will subscribe to reaction
-                                        events on this npub
+                                        events on this npub. It must be the key
+                                        in your NIP-07 extension: saving is
+                                        signed with it.
                                     </label>
                                     <input
                                         {...props}
                                         placeholder="npub1p4..."
+                                        value={field.value}
                                     />
+                                    <button
+                                        onClick={useExtensionNpub}
+                                        class="bg-neutral-500 px-4 py-2 rounded self-start mt-2 text-sm"
+                                        type="button"
+                                    >
+                                        Use my extension's npub
+                                    </button>
                                     {field.error && (
                                         <div class="text-red-500">
                                             {field.error}

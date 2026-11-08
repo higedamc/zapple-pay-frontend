@@ -5,7 +5,8 @@
     "build": "solid-start build",
     "start": "solid-start start",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
-    "check-types": "tsc --noemit"
+    "check-types": "tsc --noemit",
+    "postbuild": "cp dist/public/index.html dist/public/404.html"
   },
   "type": "module",
   "devDependencies": {
@@ -28,7 +29,6 @@
     "solid-js": "^1.7.11",
     "solid-qr-code": "^0.0.8",
     "solid-start": "^0.3.5",
-    "solid-start-vercel": "^0.3.5",
     "undici": "^5.24.0"
   },
   "engines": {

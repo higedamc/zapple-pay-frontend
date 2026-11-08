@@ -41,21 +41,28 @@ export function NWA(props: {
         );
     }
     return (
-        <Show when={nwaResponse() && nwaResponse.latest}>
-            <IntegratedQr value={nwaResponse()?.uri} />
-            <label class="text-sm font-normal mt-0 opacity-75">
-                <p>
-                    Scan this code with an NWA-compatible wallet like{" "}
-                    <a href="https://app.mutinywallet.com">Mutiny</a>.
-                </p>
-            </label>
-            <button
-                onClick={handleOpenMutinyNWA}
-                class="bg-[#E53254] px-4 py-3 rounded disabled:opacity-25"
-                type="button"
+        <>
+            <Show when={nwaResponse.error}>
+                <p class="text-red-500">{nwaResponse.error?.message}</p>
+            </Show>
+            <Show
+                when={!nwaResponse.error && nwaResponse() && nwaResponse.latest}
             >
-                Open in Mutiny Wallet
-            </button>
-        </Show>
+                <IntegratedQr value={nwaResponse()?.uri} />
+                <label class="text-sm font-normal mt-0 opacity-75">
+                    <p>
+                        Scan this code with an NWA-compatible wallet like{" "}
+                        <a href="https://app.mutinywallet.com">Mutiny</a>.
+                    </p>
+                </label>
+                <button
+                    onClick={handleOpenMutinyNWA}
+                    class="bg-[#E53254] px-4 py-3 rounded disabled:opacity-25"
+                    type="button"
+                >
+                    Open in Mutiny Wallet
+                </button>
+            </Show>
+        </>
     );
 }
