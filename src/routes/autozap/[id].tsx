@@ -152,29 +152,34 @@ function AutoZapForm(props: {
     const handleSubmit = async (f: AutoZapFormType) => {
         const { from_npub, amount_sats, nwc, interval } = f;
 
-        const to_npub_hex = nip19.decode(props.npub).data;
-
-        // The backend only stores a subscription owned by the signing key, so
-        // without an explicit sender npub the payer is the extension's key
-        // (upstream used the shared Zapple Pay npub here, which a private
-        // allowlisted instance cannot sign for).
-        const from_npub_hex = from_npub
-            ? nip19.decode(from_npub).data
-            : await getExtensionPubkey();
-
-        // Save from_npub to localstorage
-        if (from_npub) {
-            localStorage.setItem("fromnpub", from_npub);
-        }
-
-        const payload: ZapplePayPayload = {
-            npub: from_npub_hex.toString(),
-            to_npub: to_npub_hex.toString(),
-            amount_sats: Number(amount_sats),
-            time_period: interval
-        };
-
+        setError(undefined);
+        // Everything that can throw lives inside the try: this page's only
+        // error surface is the `error()` signal, so a rejection that escapes
+        // handleSubmit (no NIP-07 signer, declined prompt, malformed npub)
+        // would otherwise leave the button doing nothing.
         try {
+            const to_npub_hex = nip19.decode(props.npub).data;
+
+            // The backend only stores a subscription owned by the signing key,
+            // so without an explicit sender npub the payer is the extension's
+            // key (upstream used the shared Zapple Pay npub here, which a
+            // private allowlisted instance cannot sign for).
+            const from_npub_hex = from_npub
+                ? nip19.decode(from_npub).data
+                : await getExtensionPubkey();
+
+            // Save from_npub to localstorage
+            if (from_npub) {
+                localStorage.setItem("fromnpub", from_npub);
+            }
+
+            const payload: ZapplePayPayload = {
+                npub: from_npub_hex.toString(),
+                to_npub: to_npub_hex.toString(),
+                amount_sats: Number(amount_sats),
+                time_period: interval
+            };
+
             if (nwaAuthId()) {
                 payload.auth_id = nwaAuthId();
                 console.log("using auth id", nwaAuthId());

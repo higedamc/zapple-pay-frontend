@@ -25,9 +25,9 @@ const HTTP_AUTH_KIND = 27235;
  * used as-is so a local `http://127.0.0.1:<port>` backend can be exercised.
  */
 const RAW_API_URL: string = import.meta.env.VITE_ZAPPLE_API_URL ?? "";
-export const API_BASE = /^https?:\/\//.test(RAW_API_URL)
-    ? RAW_API_URL.replace(/\/+$/, "")
-    : `https://${RAW_API_URL}`;
+export const API_BASE = (
+    /^https?:\/\//.test(RAW_API_URL) ? RAW_API_URL : `https://${RAW_API_URL}`
+).replace(/\/+$/, "");
 
 export const NO_SIGNER_MESSAGE =
     "A NIP-07 signer extension (Alby, nos2x, ...) is required: requests to the backend are signed with your key.";
