@@ -24,11 +24,9 @@ import { CheckOut } from "~/components/CheckOut";
 import { CreateAutozapPage } from "~/components/CreateButton";
 import { NWA } from "~/components/Auth";
 import { LoadingSpinner } from "~/components/LoadingSpinner";
+import { authedPost, describeFailure, getExtensionPubkey } from "~/api/nip98";
 
 const PRIMAL_API = "https://primal-cache.mutinywallet.com/api";
-const API_URL = import.meta.env.VITE_ZAPPLE_API_URL;
-const ZAPPLE_PAY_NPUB =
-    "npub1wxl6njlcgygduct7jkgzrvyvd9fylj4pqvll6p32h59wyetm5fxqjchcan";
 
 export function getHexpubFromNpub(npub?: string) {
     if (!npub) return;
@@ -154,48 +152,52 @@ function AutoZapForm(props: {
     const handleSubmit = async (f: AutoZapFormType) => {
         const { from_npub, amount_sats, nwc, interval } = f;
 
-        const to_npub_hex = nip19.decode(props.npub).data;
-
-        // If there's no from npub set, just use zapple pay's npub
-        const from_npub_hex = nip19.decode(from_npub || ZAPPLE_PAY_NPUB).data;
-
-        // Save from_npub to localstorage
-        if (from_npub) {
-            localStorage.setItem("fromnpub", from_npub);
-        }
-
-        const payload: ZapplePayPayload = {
-            npub: from_npub_hex.toString(),
-            to_npub: to_npub_hex.toString(),
-            amount_sats: Number(amount_sats),
-            time_period: interval
-        };
-
+        setError(undefined);
+        // Everything that can throw lives inside the try: this page's only
+        // error surface is the `error()` signal, so a rejection that escapes
+        // handleSubmit (no NIP-07 signer, declined prompt, malformed npub)
+        // would otherwise leave the button doing nothing.
         try {
+            const to_npub_hex = nip19.decode(props.npub).data;
+
+            // The backend only stores a subscription owned by the signing key,
+            // so without an explicit sender npub the payer is the extension's
+            // key (upstream used the shared Zapple Pay npub here, which a
+            // private allowlisted instance cannot sign for).
+            const from_npub_hex = from_npub
+                ? nip19.decode(from_npub).data
+                : await getExtensionPubkey();
+
+            // Save from_npub to localstorage
+            if (from_npub) {
+                localStorage.setItem("fromnpub", from_npub);
+            }
+
+            const payload: ZapplePayPayload = {
+                npub: from_npub_hex.toString(),
+                to_npub: to_npub_hex.toString(),
+                amount_sats: Number(amount_sats),
+                time_period: interval
+            };
+
             if (nwaAuthId()) {
                 payload.auth_id = nwaAuthId();
                 console.log("using auth id", nwaAuthId());
             } else if (nwc) {
                 payload.nwc = nwc;
-                console.log("using nwc", nwc);
             } else {
                 throw new Error("You must connect a wallet");
             }
 
-            const res = await fetch(`https://${API_URL}/create-subscription`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-            });
+            const res = await authedPost(
+                "/create-subscription",
+                JSON.stringify(payload)
+            );
 
             if (res.ok) {
                 setSaved(true);
             } else {
-                // if there's response text print that error
-                const text = await res.text();
-                throw new Error(text);
+                throw new Error(await describeFailure(res));
             }
         } catch (e) {
             console.error(e);

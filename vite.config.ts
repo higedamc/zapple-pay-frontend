@@ -1,7 +1,9 @@
 import solid from "solid-start/vite";
 import { defineConfig } from "vite";
-import vercel from "solid-start-vercel";
+import node from "solid-start-node";
 
+// Static single-page build for nsite: no server rendering, the client bundle
+// plus index.html in dist/public is the whole deployable.
 export default defineConfig({
-  plugins: [solid({ adapter: vercel({ edge: false }) })],
+  plugins: [solid({ ssr: false, adapter: node() })],
 });

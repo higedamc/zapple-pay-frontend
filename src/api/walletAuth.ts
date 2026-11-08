@@ -1,12 +1,11 @@
 import { eify } from "~/utils/eify";
-
-const API_URL = import.meta.env.VITE_ZAPPLE_API_URL;
+import { API_BASE, authedPost, describeFailure } from "~/api/nip98";
 
 export async function fetchNwaStatus(nwaResponse: { id: string; uri: string }) {
     try {
         console.log("fetching nwa status for id", nwaResponse.id);
         const response = await fetch(
-            `https://${API_URL}/check-wallet-auth?id=${nwaResponse.id}`,
+            `${API_BASE}/check-wallet-auth?id=${encodeURIComponent(nwaResponse.id)}`,
             {
                 method: "GET",
                 headers: {
@@ -34,6 +33,14 @@ export type CreateNWAParams = {
     identity?: string;
 };
 
+/**
+ * Ask the backend for a fresh NWA (NIP-49) URI.
+ *
+ * `/wallet-auth` is a NIP-98 signed POST on the self-hosted backend. The body
+ * is either absent (no budget) or a JSON `WalletAuthParams`; anything else is
+ * a 400, so the budget fields are only sent when both are present. `identity`
+ * is the autozap recipient and only travels together with a budget.
+ */
 export async function createNwa({
     amount,
     time_period,
@@ -46,36 +53,32 @@ export async function createNwa({
         return undefined;
     }
 
-    let params = undefined;
+    let body: string | undefined = undefined;
 
-    // We'll do params in the case of a budget
     if (amount && time_period) {
-        params = new URLSearchParams({
-            amount,
+        const params: {
+            amount: number;
+            time_period: string;
+            identity?: string;
+        } = {
+            amount: Number(amount),
             time_period
-        });
-    }
-
-    if (identity) {
-        params = params || new URLSearchParams();
-        params.append("identity", identity);
+        };
+        if (identity) {
+            params.identity = identity;
+        }
+        body = JSON.stringify(params);
     }
 
     try {
-        const response = await fetch(
-            `https://${API_URL}/wallet-auth${
-                params ? `?${params.toString()}` : ""
-            }`,
-            {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
-        );
+        const response = await authedPost("/wallet-auth", body);
 
         if (!response.ok) {
-            throw new Error(`Failed to get Nostr Wallet Auth details`);
+            throw new Error(
+                `Failed to get Nostr Wallet Auth details: ${await describeFailure(
+                    response
+                )}`
+            );
         }
 
         // {

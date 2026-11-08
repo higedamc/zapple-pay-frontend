@@ -24,3 +24,7 @@ gitignore
 Thumbs.db
 
 .env.local
+# build-time config copied from .env.example (README); never commit a real one
+.env
+.env.*
+!.env.example
